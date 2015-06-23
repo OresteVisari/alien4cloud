@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.annotation.Resource;
@@ -42,6 +43,7 @@ import alien4cloud.model.components.IndexedCapabilityType;
 import alien4cloud.model.components.IndexedInheritableToscaElement;
 import alien4cloud.model.components.IndexedNodeType;
 import alien4cloud.model.components.IndexedRelationshipType;
+import alien4cloud.model.components.PropertyConstraint;
 import alien4cloud.model.components.PropertyDefinition;
 import alien4cloud.model.components.RequirementDefinition;
 import alien4cloud.model.components.ScalarPropertyValue;
@@ -127,6 +129,21 @@ public class TopologyValidationService {
                     int count = countRelationshipsForRequirement(reqDef.getId(), reqDef.getType(), nodeTemp.getRelationships());
                     if (count < reqDef.getLowerBound()) {
                         task.getRequirementsToImplement().add(new RequirementToSatify(reqDef.getId(), reqDef.getType(), reqDef.getLowerBound() - count));
+                        continue;
+                    }
+
+                    // TODO : test node filters here ?
+                    if (reqDef.getNodeFilter() == null) {
+                        continue;
+                    }
+                    if (reqDef.getNodeFilter().getProperties() != null && !reqDef.getNodeFilter().getProperties().isEmpty()) {
+                        Map<String, List<PropertyConstraint>> properties = reqDef.getNodeFilter().getProperties();
+                        for (Entry<String, List<PropertyConstraint>> property : properties.entrySet()) {
+                            task.getRequirementsToImplement().add(new RequirementToSatify(reqDef.getId(), property.getKey(), reqDef.getLowerBound() - count));
+                        }
+                    }
+                    if (reqDef.getNodeFilter().getCapabilities() != null && !reqDef.getNodeFilter().getCapabilities().isEmpty()) {
+
                     }
                 }
             }
@@ -196,7 +213,7 @@ public class TopologyValidationService {
                     }
                 }
             }
-
+            
             if (MapUtils.isNotEmpty(task.getProperties())) {
                 if (CollectionUtils.isNotEmpty(task.getProperties().get(TaskLevel.REQUIRED))
                         || CollectionUtils.isNotEmpty(task.getProperties().get(TaskLevel.WARNING))) {
