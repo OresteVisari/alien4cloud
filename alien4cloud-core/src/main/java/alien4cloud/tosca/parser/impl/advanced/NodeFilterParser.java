@@ -47,7 +47,7 @@ public class NodeFilterParser extends DefaultParser<NodeFilter> {
                                 PropertyConstraint constraintProperty = constraintParser.parse(prop.getValueNode(), context);
                                 ArrayList<PropertyConstraint> list = Lists.newArrayList();
                                 list.add(constraintProperty);
-                                // nodeFilter.getProperties().put(propertyKey, list);
+                                nodeFilter.getProperties().put(propertyKey, list);
                             }
                         }
                     }
@@ -59,7 +59,8 @@ public class NodeFilterParser extends DefaultParser<NodeFilter> {
         } else {
             ParserUtils.addTypeError(node, context.getParsingErrors(), "Property NodeFilter");
         }
-        return nodeFilter;
-    }
 
+        return nodeFilter;
+
+    }
 }
