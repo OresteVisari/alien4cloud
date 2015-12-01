@@ -94,7 +94,7 @@ public class OrchestratorService {
         if (StringUtils.isBlank(oldName) || !Objects.equals(orchestrator.getName(), oldName)) {
             // check that the orchestrator doesn't already exists
             if (alienDAO.count(Orchestrator.class, QueryBuilders.termQuery("name", orchestrator.getName())) > 0) {
-                throw new AlreadyExistException("a cloud with the given name already exists.");
+                throw new AlreadyExistException("an orchestrator with the given name already exists.");
             }
         }
         alienDAO.save(orchestrator);

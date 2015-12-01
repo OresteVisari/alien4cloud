@@ -26,6 +26,8 @@ public class LocationResourceTemplate {
     @Id
     private String id;
     @NotBlank
+    @TermFilter
+    @StringField(indexType = IndexType.not_analyzed)
     private String name;
     @NotBlank
     @TermFilter

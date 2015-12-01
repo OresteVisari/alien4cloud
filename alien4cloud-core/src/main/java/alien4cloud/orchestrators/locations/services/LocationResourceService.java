@@ -1,17 +1,14 @@
 package alien4cloud.orchestrators.locations.services;
 
-import java.util.Collection;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import javax.annotation.Resource;
 import javax.inject.Inject;
 
+import alien4cloud.exception.AlreadyExistException;
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.collections4.MapUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.elasticsearch.index.query.QueryBuilder;
 import org.elasticsearch.index.query.QueryBuilders;
 import org.springframework.stereotype.Component;
@@ -188,7 +185,7 @@ public class LocationResourceService {
     }
 
     private Map<String, String[]> getLocationIdFilter(String locationId) {
-        return MapUtil.newHashMap(new String[] { "locationId" }, new String[][] { new String[] { locationId } });
+        return MapUtil.newHashMap(new String[]{"locationId"}, new String[][]{new String[]{locationId}});
     }
 
     private List<LocationResourceTemplate> getResourcesTemplates(Map<String, String[]> filter) {
@@ -230,7 +227,7 @@ public class LocationResourceService {
         locationResourceTemplate.setTypes(Lists.<String> newArrayList(resourceType.getElementId()));
         locationResourceTemplate.getTypes().addAll(resourceType.getDerivedFrom());
         locationResourceTemplate.setTemplate(nodeTemplate);
-        saveResource(location, locationResourceTemplate);
+        ensureNameUnicityAndSave(location, locationResourceTemplate);
         return locationResourceTemplate;
     }
 
@@ -252,8 +249,13 @@ public class LocationResourceService {
 
     public void merge(Object mergeRequest, String resourceId) {
         LocationResourceTemplate resourceTemplate = getOrFail(resourceId);
+        String oldName = resourceTemplate.getName();
         ReflectionUtil.mergeObject(mergeRequest, resourceTemplate);
-        saveResource(resourceTemplate);
+        if (oldName.equals(resourceTemplate.getName())) {
+            saveResource(resourceTemplate);
+        } else {
+            ensureNameUnicityAndSave(resourceTemplate);
+        }
     }
 
     public void setTemplateProperty(String resourceId, String propertyName, Object propertyValue) {
@@ -335,7 +337,6 @@ public class LocationResourceService {
     public void deleteGeneratedResources(String locationId) {
         QueryBuilder locationIdQuery = QueryBuilders.termQuery("locationId", locationId);
         QueryBuilder generatedFieldQuery = QueryBuilders.termQuery("generated", true);
-        // QueryBuilder builder = QueryBuilders.filteredQuery(locationIdQuery, filterBuilder);
         QueryBuilder builder = QueryBuilders.boolQuery().must(locationIdQuery).must(generatedFieldQuery);
         Location location = locationService.getOrFail(locationId);
         location.setLastUpdateDate(new Date());
@@ -343,10 +344,33 @@ public class LocationResourceService {
         alienDAO.save(location);
     }
 
+    /**
+     * Save the ressource but ensure that the name is unique before saving it.
+     *
+     * @param location The location.
+     * @param locationResourceTemplate The template of the new ressource.
+     */
+    public synchronized void ensureNameUnicityAndSave(Location location, LocationResourceTemplate locationResourceTemplate) {
+        Map<String, String[]> filters = null;
+        if (status != null) {
+            filters = MapUtil.newHashMap(new String[] { "status" }, new String[][] { new String[] { status.toString() } });
+        }
+        alienDAO.search(LocationResourceTemplate.class, query, filters, authorizationFilter, null, from, size);
+            if (alienDAO.count(LocationResourceTemplate.class, QueryBuilders.termQuery("name", locationResourceTemplate.getName())) > 0) {
+            throw new AlreadyExistException("a location resource template with the given name already exists.");
+        }
+        saveResource(location, locationResourceTemplate);
+    }
+
     public void saveResource(Location location, LocationResourceTemplate resourceTemplate) {
         location.setLastUpdateDate(new Date());
         alienDAO.save(location);
         alienDAO.save(resourceTemplate);
+    }
+
+    public void ensureNameUnicityAndSave(LocationResourceTemplate resourceTemplate) {
+        Location location = locationService.getOrFail(resourceTemplate.getLocationId());
+        ensureNameUnicityAndSave(location, resourceTemplate);
     }
 
     public void saveResource(LocationResourceTemplate resourceTemplate) {
